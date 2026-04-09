@@ -22,9 +22,14 @@
 - [Core Features Deep Dive](#-core-features-deep-dive)
 - [Models on Atlas Cloud](#-models-on-atlas-cloud)
 - [API Quick Start](#-api-quick-start)
+- [Complete API Tutorial — How to Use Seedance 2.0 API](#-complete-api-tutorial--how-to-use-seedance-20-api)
 - [Portrait Library API](#-portrait-library-api)
+- [Seedance 2.0 Prompt Engineering Guide](#-seedance-20-prompt-engineering-guide)
+- [Seedance 2.0 Tips & Tricks](#-seedance-20-tips--tricks)
 - [Seedance 2.0 vs Competitors](#-seedance-20-vs-competitors)
+- [Seedance 2.0 vs Kling 3.0 — Detailed Comparison](#-seedance-20-vs-kling-30--detailed-comparison)
 - [Seedance 2.0 vs 1.5 Pro](#-seedance-20-vs-15-pro)
+- [Migration from Seedance 1.5 to 2.0](#-migration-from-seedance-15-to-20)
 - [Use Cases](#-use-cases)
 - [Resources](#-resources)
 - [FAQ](#faq)
@@ -85,7 +90,11 @@ A dedicated asset management system where you:
 3. **Reference** via `asset://<asset_id>` in any image field
 4. The model generates video with **identity-consistent** results
 
-### Image Requirements
+### Seedance 2.0 Portrait Library Tutorial
+
+Follow these steps to get started with the Portrait Library feature:
+
+#### Step 1: Prepare Your Portrait Image
 
 | Spec | Value |
 |------|-------|
@@ -94,12 +103,35 @@ A dedicated asset management system where you:
 | Aspect ratio | 0.4 – 2.5 |
 | Max size | 30 MB |
 
-### Using in Playground
+**Best practices for portrait photos:**
+- Use a well-lit, front-facing photo with a neutral background
+- Ensure the face is clearly visible and not obscured by accessories
+- Higher resolution images produce better identity preservation
+- Avoid heavy filters or extreme color grading on the source image
+
+#### Step 2: Upload via Playground
 
 1. Open **Portrait Library** in the image input area
 2. **Upload** portrait and wait for preprocessing
 3. **Select** the prepared portrait → available as reference
 4. Write prompt and generate!
+
+#### Step 3: Upload via API
+
+```python
+import requests
+
+API_KEY = "your-atlas-cloud-api-key"
+H = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+# Create a portrait asset
+resp = requests.post("https://console.atlascloud.ai/api/v1/sd/assets", headers=H, json={
+    "image_url": "https://example.com/portrait.jpg",
+    "name": "My Portrait"
+})
+asset_id = resp.json()["data"]["id"]
+print(f"Asset created: {asset_id}")
+```
 
 > **Tip**: Click the **"API" tab** next to Playground for request examples and SDK snippets. Use **"Copy for LLM"** to scaffold the integration via your AI coding assistant.
 
@@ -224,6 +256,197 @@ curl -X POST "https://api.atlascloud.ai/api/v1/model/prediction" \
 
 ---
 
+## 📘 Complete API Tutorial — How to Use Seedance 2.0 API
+
+This step-by-step Seedance 2.0 tutorial covers everything from setup to advanced workflows.
+
+### Step 1: Get Your API Key
+
+1. Sign up at [Atlas Cloud](https://www.atlascloud.ai?utm_source=github&utm_campaign=awesome-seedance-2.0)
+2. Navigate to **Settings → API Keys**
+3. Click **Create API Key** and save it securely
+4. You'll receive free credits to start experimenting immediately
+
+### Step 2: Install Dependencies
+
+```bash
+pip install requests python-dotenv
+```
+
+Create a `.env` file:
+
+```
+ATLASCLOUD_API_KEY=your-api-key-here
+```
+
+### Step 3: Build a Reusable Client
+
+```python
+import requests
+import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class SeedanceClient:
+    """Seedance 2.0 API client for Atlas Cloud."""
+    
+    BASE_URL = "https://api.atlascloud.ai/api/v1/model/prediction"
+    PORTRAIT_URL = "https://console.atlascloud.ai/api/v1/sd/assets"
+    
+    def __init__(self):
+        self.api_key = os.getenv("ATLASCLOUD_API_KEY")
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+    
+    def text_to_video(self, prompt, duration=10, resolution="720p", 
+                      ratio="16:9", audio=True, web_search=False):
+        """Generate video from text prompt."""
+        payload = {
+            "model": "bytedance/seedance-2.0/text-to-video",
+            "prompt": prompt,
+            "duration": duration,
+            "resolution": resolution,
+            "ratio": ratio,
+            "generate_audio": audio,
+            "web_search": web_search
+        }
+        return self._submit_and_poll(payload)
+    
+    def image_to_video(self, image_url, prompt, duration=8,
+                       ratio="adaptive", audio=True):
+        """Animate a still image into video."""
+        payload = {
+            "model": "bytedance/seedance-2.0/image-to-video",
+            "image": image_url,
+            "prompt": prompt,
+            "duration": duration,
+            "ratio": ratio,
+            "generate_audio": audio
+        }
+        return self._submit_and_poll(payload)
+    
+    def reference_to_video(self, reference_images, prompt, 
+                           duration=10, audio=True):
+        """Generate video using portrait references."""
+        payload = {
+            "model": "bytedance/seedance-2.0/reference-to-video",
+            "reference_images": reference_images,
+            "prompt": prompt,
+            "duration": duration,
+            "generate_audio": audio
+        }
+        return self._submit_and_poll(payload)
+    
+    def create_portrait(self, image_url, name="portrait"):
+        """Register a portrait in the Portrait Library."""
+        resp = requests.post(self.PORTRAIT_URL, headers=self.headers, json={
+            "image_url": image_url,
+            "name": name
+        })
+        return resp.json()["data"]["id"]
+    
+    def get_portrait_status(self, asset_id):
+        """Check portrait processing status."""
+        resp = requests.get(
+            f"{self.PORTRAIT_URL}/{asset_id}", 
+            headers=self.headers
+        )
+        return resp.json()["data"]["status"]
+    
+    def _submit_and_poll(self, payload, interval=5, timeout=300):
+        """Submit a generation request and poll until complete."""
+        resp = requests.post(self.BASE_URL, headers=self.headers, json=payload)
+        prediction_id = resp.json()["data"]["id"]
+        
+        elapsed = 0
+        while elapsed < timeout:
+            result = requests.get(
+                f"{self.BASE_URL}/{prediction_id}", 
+                headers=self.headers
+            ).json()
+            status = result["data"]["status"]
+            
+            if status in ("completed", "succeeded"):
+                return result["data"]["outputs"]
+            elif status == "failed":
+                raise Exception(f"Generation failed: {result['data'].get('error')}")
+            
+            time.sleep(interval)
+            elapsed += interval
+        
+        raise TimeoutError(f"Generation timed out after {timeout}s")
+```
+
+### Step 4: Generate Your First Video
+
+```python
+client = SeedanceClient()
+
+# Text-to-Video
+outputs = client.text_to_video(
+    prompt="A photographer walks through a sunlit Tokyo alley, cherry blossoms falling, "
+           "handheld camera follows from behind, shallow depth of field, golden hour",
+    duration=10,
+    resolution="720p",
+    ratio="16:9"
+)
+print("Video URL:", outputs[0])
+```
+
+### Step 5: Use Portrait Library in Code
+
+```python
+client = SeedanceClient()
+
+# Register a portrait
+asset_id = client.create_portrait(
+    image_url="https://example.com/headshot.jpg",
+    name="CEO Portrait"
+)
+
+# Wait for processing
+import time
+while True:
+    status = client.get_portrait_status(asset_id)
+    if status == "active":
+        break
+    time.sleep(3)
+
+# Generate video with the registered face
+outputs = client.reference_to_video(
+    reference_images=[f"asset://{asset_id}"],
+    prompt="The person in image 1 presents quarterly results in a modern boardroom, "
+           "confident posture, professional lighting, camera slowly zooms in",
+    duration=12
+)
+print("Video URL:", outputs[0])
+```
+
+### Step 6: Chain Videos for Longer Content
+
+```python
+# Generate a sequence of connected scenes
+first_scene = client.text_to_video(
+    prompt="A detective enters a dimly lit office, noir style, rain on windows",
+    duration=8
+)
+
+# Use the last frame of scene 1 as the starting frame of scene 2
+second_scene = client.image_to_video(
+    image_url=first_scene[0],  # last frame URL from the outputs
+    prompt="The detective picks up a photograph from the desk, camera pulls in close",
+    duration=8
+)
+```
+
+> 💡 **[Try the full API on Atlas Cloud](https://www.atlascloud.ai/models/bytedance/seedance-2.0/text-to-video?utm_source=github&utm_campaign=awesome-seedance-2.0) — includes interactive playground and code snippets.**
+
+---
+
 ## 🔧 Portrait Library API
 
 **Base URL**: `https://console.atlascloud.ai/api/v1`
@@ -239,6 +462,142 @@ curl -X POST "https://api.atlascloud.ai/api/v1/model/prediction" \
 | POST | `/sd/assets/:id/restore` | Restore from trash |
 
 **Error codes**: 200 (success), 400 (invalid request), 401 (auth error), 404 (not found), 500 (server error)
+
+---
+
+## 🎨 Seedance 2.0 Prompt Engineering Guide
+
+Writing effective prompts for Seedance 2.0 can dramatically improve output quality. Below are tested prompt patterns organized by style and use case.
+
+### Cinematic & Film Style Prompts
+
+**1. Noir Detective Scene**
+```
+A private detective sits alone in a rain-streaked office at midnight, smoking light 
+curls upward, venetian blind shadows across the desk, camera slowly dollies forward, 
+film noir lighting with high contrast, 1940s aesthetic, moody jazz score
+```
+
+**2. Epic Landscape Reveal**
+```
+Aerial drone shot ascending over misty mountain peaks at sunrise, clouds rolling through 
+valleys below, golden light hits snow-capped summits, camera tilts down then pushes 
+forward, sweeping orchestral score, 4K cinematic quality
+```
+
+**3. Intimate Dialogue Scene**
+```
+Two friends sit across a cafe table, warm afternoon light through large windows, one 
+laughs while the other tells a story, shallow depth of field shifting between faces, 
+handheld camera feel, ambient cafe sounds with soft background music
+```
+
+### Commercial & Product Prompts
+
+**4. Product Showcase**
+```
+A sleek smartphone rotates slowly on a reflective black surface, studio lighting with 
+soft rim light, particles of light float around the device, camera circles smoothly, 
+minimalist style, premium tech aesthetic
+```
+
+**5. Food Commercial**
+```
+Fresh pasta being tossed in a sizzling pan, steam rising, herbs scattered mid-air in 
+slow motion, warm kitchen lighting from above, macro close-up then pull back to reveal 
+the chef, sizzling sound effects
+```
+
+### Social Media & Short-Form Prompts
+
+**6. TikTok-Style Transition**
+```
+A woman in streetwear snaps her fingers and outfit changes instantly, urban rooftop 
+setting at golden hour, upbeat energy, camera zooms in on the snap then zooms out to 
+reveal new look, 9:16 portrait format, trendy pop music
+```
+
+**7. Instagram Reel — Travel**
+```
+Montage of Santorini Greece highlights: white buildings with blue domes, sunset over 
+the caldera, local food close-ups, swimming in crystal water, smooth transitions 
+between scenes, warm color grading, chill lo-fi soundtrack
+```
+
+### Character & Portrait Prompts
+
+**8. AI Spokesperson Introduction**
+```
+[Use with Portrait Library] The person in @image1 stands in a modern glass office, 
+delivers a welcome message to camera with confident smile, professional attire, soft 
+key light from left, slow subtle zoom in, corporate but warm tone
+```
+
+**9. Educational Presenter**
+```
+[Use with Portrait Library] The instructor in @image1 explains a concept at a digital 
+whiteboard, gestures naturally toward floating 3D diagrams, clean studio background, 
+well-lit, calm authoritative voice, medium shot with occasional close-up
+```
+
+### Artistic & Experimental Prompts
+
+**10. Abstract Art Animation**
+```
+Flowing liquid metal transforms into organic plant shapes, bioluminescent colors pulsing 
+in deep blue and magenta, macro lens extreme close-up, slow dreamlike movement, ambient 
+electronic soundscape, art installation aesthetic
+```
+
+**11. Anime-Style Action**
+```
+An anime warrior charges through a bamboo forest, sword drawn, leaves scatter in slow 
+motion, dramatic speed lines, camera tracks alongside the character, cel-shaded aesthetic 
+with vibrant colors, intense orchestral combat music
+```
+
+**12. Retro VHS Aesthetic**
+```
+A teenager rides a bicycle through suburban streets at dusk, VHS tape artifacts and scan 
+lines overlay, warm 1980s color palette, lens flare from streetlights, camera follows from 
+a car window, synthwave soundtrack
+```
+
+### Prompt Writing Tips for Seedance 2.0
+
+- **Be specific about camera movement**: "camera slowly dollies forward" beats "camera moves"
+- **Include lighting details**: "warm golden hour side light" creates mood
+- **Mention audio when using `generate_audio: true`**: "ambient rain sounds with distant thunder"
+- **Use the @reference system**: "@image1 walks toward @image2 in the style of @image3"
+- **Specify aspect ratio context**: write vertical scene descriptions for 9:16 content
+- **Layer your description**: subject → action → environment → camera → mood → audio
+
+---
+
+## 💡 Seedance 2.0 Tips & Tricks
+
+### Getting the Best Quality Output
+
+1. **Use 720p for iteration, 2K for final output** — iterate at lower resolution to save time and credits, then regenerate your best prompt at full 2K
+2. **Always describe camera movement** — Seedance 2.0 has the best camera control of any model (9/10), so take advantage of it
+3. **Enable audio generation strategically** — audio adds richness but increases generation time; disable during rapid iteration
+4. **Use web search for real-world subjects** — set `web_search: true` when prompting about specific locations, celebrities, or branded content
+
+### Advanced Techniques
+
+5. **Multi-reference compositing** — use @image1 for character, @image2 for art style, @image3 for background to control every element independently
+6. **Video chaining for long content** — use `return_last_frame: true` then feed it into image-to-video for seamless multi-shot sequences
+7. **Fast model for storyboarding** — generate 6-8 variants with the Fast model, pick the best direction, then regenerate with the standard model
+8. **Voice cloning workflow** — upload a 10-30 second voice sample, then reference it in prompts mentioning dialogue; works best with clear, single-speaker audio
+9. **Portrait Library batch workflow** — register multiple portraits, then reference them in the same scene using `@image1`, `@image2`, etc. for multi-character scenes
+10. **Negative prompting through specificity** — instead of trying to exclude elements, describe exactly what you want in detail; Seedance 2.0 responds well to precise positive instructions
+
+### Common Mistakes to Avoid
+
+- **Don't upload real faces directly** — always go through Portrait Library
+- **Don't use overly short prompts** — "a cat" will give generic results; add environment, lighting, camera, and mood
+- **Don't set duration too long for simple scenes** — 4-6 seconds is ideal for single-action clips; use chaining for longer content
+- **Don't forget aspect ratio** — match your output to your platform (9:16 for TikTok/Reels, 16:9 for YouTube, 1:1 for Instagram posts)
 
 ---
 
@@ -261,6 +620,37 @@ curl -X POST "https://api.atlascloud.ai/api/v1/model/prediction" \
 
 ---
 
+## 🔥 Seedance 2.0 vs Kling 3.0 — Detailed Comparison
+
+Seedance 2.0 and Kling 3.0 are the two leading Chinese AI video models in 2026. Here's how they compare in depth:
+
+### Visual Quality
+- **Kling 3.0** takes the edge in raw visual fidelity with 4K/60fps output and a visual quality score of 8.4/10
+- **Seedance 2.0** scores 8.2/10 overall but offers native 2K with superior consistency across multi-shot generations
+
+### Camera & Controllability
+- **Seedance 2.0** leads decisively with a 9/10 camera control rating — the highest of any video model
+- Kling 3.0 scores 8/10 on camera control; strong but without Seedance's fine-grained director controls
+
+### Unique Strengths
+- **Seedance 2.0**: Portrait Library for identity-consistent faces, web search for real-world references, 12-input multimodal control, voice cloning with 3 characters
+- **Kling 3.0**: Longer video duration (up to 2 minutes), higher maximum resolution (4K/60fps), motion brush for precise movement control
+
+### Best Use Cases
+- Choose **Seedance 2.0** when you need: real-face identity preservation, complex multi-reference scenes, audio-video joint generation, or maximum camera control
+- Choose **Kling 3.0** when you need: maximum visual resolution, longer form video (>15s), or simpler single-subject generation
+
+### API Pricing Comparison
+
+| Platform | Seedance 2.0 (10s) | Kling 3.0 (10s) |
+|----------|-------------------|-----------------|
+| Atlas Cloud | $0.10/req | $0.10/req |
+| Native Platform | ~$0.60 | ~$0.50 |
+
+> 💡 **[Try both models side-by-side on Atlas Cloud](https://www.atlascloud.ai?utm_source=github&utm_campaign=awesome-seedance-2.0) — compare outputs at the same price point.**
+
+---
+
 ## 📊 Seedance 2.0 vs 1.5 Pro
 
 | Feature | 2.0 | 1.5 Pro |
@@ -279,6 +669,58 @@ curl -X POST "https://api.atlascloud.ai/api/v1/model/prediction" \
 | Price | $0.10/req | $0.15-0.72 |
 
 > For NSFW: use `bytedance/seedance-v1.5-pro/image-to-video-spicy` on Atlas Cloud.
+
+---
+
+## 🔄 Migration from Seedance 1.5 to 2.0
+
+Upgrading from Seedance 1.5 to Seedance 2.0 is straightforward. Here's what you need to know:
+
+### API Changes
+
+**Model ID Update:**
+```python
+# Seedance 1.5
+"model": "bytedance/seedance-v1.5-pro/text-to-video"
+
+# Seedance 2.0
+"model": "bytedance/seedance-2.0/text-to-video"
+```
+
+**New Parameters Available in 2.0:**
+```python
+{
+    "web_search": True,          # New: enable real-time web references
+    "generate_audio": True,       # New: joint audio-video generation
+    "resolution": "2k",          # New: native 2K support
+    "reference_images": [...],   # New: up to 9 reference images
+    "reference_videos": [...],   # New: up to 3 reference videos
+    "reference_audio": "...",    # New: audio-driven generation
+}
+```
+
+### What Requires Changes
+
+1. **Real face inputs** — If you were passing face photos directly, you now need to use the Portrait Library. Register faces as assets first, then reference them with `asset://` URIs.
+2. **Model IDs** — Update from `seedance-v1.5-pro` to `seedance-2.0` in all API calls
+3. **NSFW content** — Seedance 2.0 does not support spicy mode. Continue using `seedance-v1.5-pro/image-to-video-spicy` for this use case.
+
+### What's Backwards Compatible
+
+- The basic request/response structure remains the same
+- Prompt format is unchanged — your existing prompts will work
+- Polling mechanism for async results is identical
+- Authentication and API key format haven't changed
+
+### Migration Checklist
+
+- [ ] Update model IDs in all API calls
+- [ ] Register any real-face images in the Portrait Library
+- [ ] Update any code that passes face images directly
+- [ ] Test audio generation with existing prompts
+- [ ] Update resolution settings to take advantage of 2K
+- [ ] Review and update prompt templates to include camera/audio directions
+- [ ] Keep Seedance 1.5 Pro integration for NSFW use cases if needed
 
 ---
 
@@ -342,6 +784,14 @@ On Feb 13, 2026, Disney sent a cease-and-desist to ByteDance regarding training 
 ### 6. Can I chain multiple videos?
 
 Yes! Set `return_last_frame: true` to get the last frame, then use it as the first frame of the next `image-to-video` call.
+
+### 7. How do I get the best results from the Seedance 2.0 API?
+
+Write detailed prompts that include subject, action, environment, camera movement, lighting, and audio descriptions. Use the reference system (@image1, @image2) for multi-element control. Start with the Fast model for iteration, then switch to standard for final output.
+
+### 8. Can I use Seedance 2.0 for commercial projects?
+
+Yes. Content generated through the API can be used commercially, subject to ByteDance's terms of service. Ensure you have rights to any reference images you upload, especially when using the Portrait Library with real people's faces.
 
 ---
 
