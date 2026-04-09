@@ -18,6 +18,7 @@
 
 - [What's New in Seedance 2.0?](#whats-new-in-seedance-20)
 - [Benchmarks & Rankings](#-benchmarks--rankings)
+- [Real Face Safety Review — Understanding the Content Policy](#️-real-face-safety-review--understanding-the-content-policy)
 - [Portrait Library — Real Face Support](#-portrait-library--real-face-support)
 - [Core Features Deep Dive](#-core-features-deep-dive)
 - [Models on Atlas Cloud](#-models-on-atlas-cloud)
@@ -74,6 +75,43 @@ Released **February 12, 2026** by ByteDance, Seedance 2.0 represents a generatio
 | Kuaishou Kling 2.1 | 4.4 | — | — |
 
 > Seedance 2.0 has been included in **VBench-2.0** alongside Veo 3, Vidu, Wan, and Kling.
+
+---
+
+## ⚠️ Real Face Safety Review — Understanding the Content Policy
+
+### Why Real Faces Get Blocked
+
+Seedance 2.0 enforces a strict **real-face content safety policy**. This is the most common issue new users encounter:
+
+> **Any real human face submitted through the standard image input will be automatically blocked by safety review.** This applies to all endpoints — image-to-video, reference-to-video, and standard image fields.
+
+This policy exists because:
+- 🔒 **Preventing deepfake abuse** — unauthorized use of real people's likenesses
+- ⚖️ **Legal compliance** — aligning with global AI safety regulations
+- 🛡️ **Platform integrity** — maintaining trust in generated content
+- 🔍 **Traceability** — all generated content includes invisible watermarks
+
+### What Gets Blocked vs What's Allowed
+
+| Input Type | Standard Input | Portrait Library |
+|-----------|---------------|-----------------|
+| **Real human photo** | 🚫 Blocked | ✅ Allowed (after registration) |
+| **AI-generated face** | ✅ Allowed | ✅ Allowed |
+| **Cartoon/anime character** | ✅ Allowed | ✅ Allowed |
+| **Landscape/object photo** | ✅ Allowed | N/A |
+| **Celebrity photo** | 🚫 Blocked | ⚠️ Requires consent verification |
+
+### Common Errors When Using Real Faces
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `content_policy_violation` | Real face detected in standard image input | Register face in Portrait Library first |
+| `safety_review_failed` | Image flagged during safety scan | Use a clearer, front-facing portrait |
+| Asset stuck at `Processing` | Image quality below threshold | Re-upload: 300-6000px, clear face, no occlusions |
+| Asset status `Failed` | Face not detectable | Ensure single face, well-lit, front-facing |
+| `asset:// reference invalid` | Asset not yet Active | Wait for Processing → Active transition |
+| `asset not found` | Wrong asset ID or deleted asset | Check asset list or restore from trash |
 
 ---
 
