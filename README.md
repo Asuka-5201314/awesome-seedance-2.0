@@ -78,40 +78,73 @@ Released **February 12, 2026** by ByteDance, Seedance 2.0 represents a generatio
 
 ---
 
-## ⚠️ Real Face Safety Review — Understanding the Content Policy
+## ⚠️ Real Face Video — Where Can You Actually Do It?
 
-### Why Real Faces Get Blocked
+### The Beginner's Question: "Can I use my face to generate a Seedance 2.0 video?"
 
-Seedance 2.0 enforces a strict **real-face content safety policy**. This is the most common issue new users encounter:
+**Short answer: Yes, but NOT on the official website.**
 
-> **Any real human face submitted through the standard image input will be automatically blocked by safety review.** This applies to all endpoints — image-to-video, reference-to-video, and standard image fields.
+This is the #1 confusion for new users. Here's the situation in plain language:
 
-This policy exists because:
-- 🔒 **Preventing deepfake abuse** — unauthorized use of real people's likenesses
-- ⚖️ **Legal compliance** — aligning with global AI safety regulations
-- 🛡️ **Platform integrity** — maintaining trust in generated content
-- 🔍 **Traceability** — all generated content includes invisible watermarks
+| Platform | Can I use a real face? | Why? |
+|----------|----------------------|------|
+| **Dreamina / 即梦** (official website) | 🚫 **No** | ByteDance blocks real-face uploads on their consumer platform |
+| **CapCut** (official integration) | 🚫 **No** | Same restriction — real face images/videos are blocked |
+| **BytePlus API** (official API) | ⚠️ Limited | Global API was delayed indefinitely; face policy unclear |
+| **Atlas Cloud** | ✅ **Yes** | Provides **Portrait Library** — register your face, get `asset://` ID, generate |
+| **fal.ai** | ⚠️ Partial | Seedance 2.0 available but no dedicated portrait management |
+| **Replicate** | ⚠️ Partial | Fast variant available, no portrait library |
 
-### What Gets Blocked vs What's Allowed
+> **Bottom line: If you want to use a real human face with Seedance 2.0, [Atlas Cloud](https://www.atlascloud.ai?utm_source=github&utm_campaign=awesome-seedance-2.0) is currently the only platform with a dedicated Portrait Library API for it.**
 
-| Input Type | Standard Input | Portrait Library |
-|-----------|---------------|-----------------|
-| **Real human photo** | 🚫 Blocked | ✅ Allowed (after registration) |
-| **AI-generated face** | ✅ Allowed | ✅ Allowed |
-| **Cartoon/anime character** | ✅ Allowed | ✅ Allowed |
-| **Landscape/object photo** | ✅ Allowed | N/A |
-| **Celebrity photo** | 🚫 Blocked | ⚠️ Requires consent verification |
+### How It Works (Step by Step for Beginners)
+
+1. **Sign up** at [Atlas Cloud](https://www.atlascloud.ai?utm_source=github&utm_campaign=awesome-seedance-2.0) — get free credits, no credit card
+2. **Open Portrait Library** — in the Seedance 2.0 Playground, find the portrait upload panel
+3. **Upload your photo** — front-facing, well-lit, 300-6000px, max 30MB
+4. **Wait ~30 seconds** — the system preprocesses and validates your face
+5. **Status becomes Active** — your face is now registered with an `asset://` ID
+6. **Generate video** — select your portrait, write a prompt like "The person walks through a park", click generate
+7. **Download** — your video with your real face is ready
+
+### Why Does the Official Website Block Real Faces?
+
+ByteDance enforces this for safety and legal reasons:
+- Preventing unauthorized deepfakes of real people
+- Complying with China's AI safety regulations
+- Maintaining platform trust — consumer platforms have stricter policies
+- All generated content includes invisible watermarks for traceability
+
+Atlas Cloud's Portrait Library solves this by adding a **registration and validation layer** — your face is pre-approved before being used in generation, which satisfies the compliance requirements.
+
+### Atlas Cloud vs fal.ai vs Replicate — API Platform Comparison
+
+| Feature | Atlas Cloud | fal.ai | Replicate |
+|---------|------------|--------|-----------|
+| **Seedance 2.0 T2V** | ✅ $0.10/req | ✅ ~$0.15/req | ❌ |
+| **Seedance 2.0 I2V** | ✅ $0.10/req | ✅ ~$0.15/req | ❌ |
+| **Seedance 2.0 Ref2V** | ✅ $0.10/req | ✅ ~$0.15/req | ❌ |
+| **Seedance 2.0 Fast** | ✅ $0.10/req | ✅ ~$0.12/req | ✅ ~$0.12/req |
+| **Portrait Library** | ✅ **Full API** | ❌ | ❌ |
+| **Real Face Support** | ✅ via Portrait Library | ⚠️ No dedicated system | ⚠️ No dedicated system |
+| **Other Video Models** | ✅ 120+ (Kling, Wan, Vidu, Sora) | ✅ 50+ | ✅ 30+ |
+| **Other Image Models** | ✅ 40+ | ✅ 20+ | ✅ 30+ |
+| **LLM Models** | ✅ 100+ | ❌ | ❌ |
+| **OpenAI-Compatible API** | ✅ | ❌ | ❌ |
+| **Free Credits** | ✅ | ✅ | ✅ |
+
+> **Why Atlas Cloud for Seedance 2.0?** It's the only API platform that offers the full Portrait Library with asset registration, lifecycle management, and `asset://` referencing. On fal.ai and Replicate, you can use Seedance 2.0 but you **cannot** use real human faces through a managed portrait system.
 
 ### Common Errors When Using Real Faces
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `content_policy_violation` | Real face detected in standard image input | Register face in Portrait Library first |
-| `safety_review_failed` | Image flagged during safety scan | Use a clearer, front-facing portrait |
-| Asset stuck at `Processing` | Image quality below threshold | Re-upload: 300-6000px, clear face, no occlusions |
+| `content_policy_violation` | Real face in standard image input (not via Portrait Library) | Register face in Portrait Library first, then use `asset://` |
+| `safety_review_failed` | Image flagged during safety scan | Use a clearer, front-facing portrait photo |
+| Asset stuck at `Processing` | Image quality issue | Re-upload: 300-6000px, clear face, no occlusions |
 | Asset status `Failed` | Face not detectable | Ensure single face, well-lit, front-facing |
-| `asset:// reference invalid` | Asset not yet Active | Wait for Processing → Active transition |
-| `asset not found` | Wrong asset ID or deleted asset | Check asset list or restore from trash |
+| `asset:// reference invalid` | Asset not yet Active | Wait for Processing → Active before generating |
+| `asset not found` | Wrong asset ID or deleted | Check asset list via `GET /sd/assets` |
 
 ---
 
